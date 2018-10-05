@@ -1,6 +1,7 @@
-import time
 import getopt
+import logging
 import sys
+import time
 
 import udon.log
 
@@ -19,13 +20,14 @@ for opt, arg in opts:
 
 
 udon.log.init(procname = procname,
-             foreground = foreground,
-             logfile = logfile)
+              foreground = foreground,
+              logfile = logfile,
+              level = "DEBUG")
 
-udon.log.info("starting")
+logging.info("starting")
 
 for i in range(10):
-    udon.log.info("%d...", i)
+    logging.info("%d...", i)
     time.sleep(1)
 
-udon.log.info("done")
+logging.info("done")

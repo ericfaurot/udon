@@ -1,6 +1,7 @@
-import time
 import getopt
+import logging
 import sys
+import time
 
 import udon.log
 import udon.run
@@ -18,11 +19,11 @@ if args:
     elif args[0] == 'kill':
         udon.run.kill(pidfile)
 else:
-    udon.log.init()
+    udon.log.init(foreground = False, level = "DEBUG")
     udon.run.daemon(pidfile)
 
-    udon.log.info("starting %s", udon.log.procname())
+    logging.info("starting")
     for i in range(20):
-        udon.log.info("%d...", i)
+        logging.info("%d...", i)
         time.sleep(1)
-    udon.log.info("done")
+    logging.info("done")

@@ -1,5 +1,6 @@
-import itertools
 import asyncio
+import itertools
+import logging
 
 import udon.log
 import udon.async
@@ -98,10 +99,10 @@ def test_8():
         while not thread.is_stopping():
             events = yield from thread.idle()
             for event in events:
-                udon.log.info("%s: %s",
-                              'signal' if event.is_signal() else 'event',
+                logging.info("%s: %s",
+                             'signal' if event.is_signal() else 'event',
                               event['name'])
-        udon.log.info("done")
+        logging.info("done")
     thread.start(run)
 
     thread2 = udon.async.Threadlet()
@@ -130,7 +131,7 @@ def test_9():
         while not thread.is_stopping():
             events = yield from thread.idle()
             for event in events:
-                udon.log.info("event: %s", event['name'])
+                logging.info("event: %s", event['name'])
                 if event is stop:
                     return
                 elif event is ev0:
@@ -141,7 +142,7 @@ def test_9():
                 elif event is ev2:
                     ev2.schedule(.1)
 
-        udon.log.info("done")
+        logging.info("done")
 
     thread = udon.async.Threadlet()
     thread.start(run)
@@ -158,13 +159,13 @@ def test_10():
 
         @thread.tasklet(delay = .1, period = 1)
         def ev0(task):
-            udon.log.info("task: ev0")
+            logging.info("task: ev0")
             task.suspend()
             thread['ev1'].resume()
 
         @thread.tasklet(delay = .1, period = 1)
         def ev1(task):
-            udon.log.info("task: ev1")
+            logging.info("task: ev1")
             task.suspend()
             thread['ev0'].resume()
             if 'ev2' in thread:
@@ -172,14 +173,14 @@ def test_10():
 
         @thread.tasklet(period = .1)
         def ev2(task):
-            udon.log.info("task: ev2")
+            logging.info("task: ev2")
 
         while not thread.is_stopping():
             events = yield from thread.idle()
             for event in events:
-                udon.log.info("event: %s", event['name'])
+                logging.info("event: %s", event['name'])
 
-        udon.log.info("done")
+        logging.info("done")
 
     thread = udon.async.Threadlet()
     thread.start(run)
@@ -214,7 +215,7 @@ def test_12():
         while not thread.is_stopping():
             events = yield from thread.idle()
             for event in events:
-                udon.log.info("%s: %s",
+                logging.info("%s: %s",
                              'signal' if event.is_signal() else 'event',
                              event['name'])
             n += 1
@@ -226,13 +227,13 @@ def test_12():
     thread.join()
 
 def main():
-    udon.log.info("starting")
+    logging.info("starting")
 
     for test in TESTS:
-        udon.log.info("===> %s" % test.__name__)
+        logging.info("===> %s" % test.__name__)
         test()
 
-    udon.log.info("exit")
+    logging.info("exit")
 
 if __name__ == "__main__":
     udon.log.init(foreground = True, level = "DEBUG")

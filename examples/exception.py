@@ -1,4 +1,5 @@
 import getopt
+import logging
 import sys
 
 import udon.log
@@ -9,14 +10,14 @@ for opt, arg in opts:
     if opt == '-f':
         foreground = False
 
-udon.log.init(foreground = foreground)
+udon.log.init(foreground = foreground, level = "DEBUG")
 
 try:
     1 / 0
 except:
-    udon.log.exception("here...")
+    logging.exception("here...")
 
 try:
     3 / 0
 except:
-    udon.log.exception("fail %s", 6, 7)
+    logging.exception("fail %r", (6, 7))

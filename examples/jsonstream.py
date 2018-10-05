@@ -1,4 +1,5 @@
 import itertools
+import logging
 import asyncio
 
 import udon.log
@@ -7,11 +8,11 @@ import udon.async
 class Client(udon.async.JSONStreamProtocol):
 
     def received(self, obj):
-        udon.log.info("received: %r", obj)
+        logging.info("received: %r", obj)
         self.send(obj)
 
 def main():
-    udon.log.info("starting")
+    logging.info("starting")
 
     loop = asyncio.get_event_loop()
     server = yield from loop.create_server(Client,
@@ -22,11 +23,11 @@ def main():
         while True:
             yield from asyncio.sleep(30)
     except asyncio.CancelledError:
-        udon.log.info("interrupted")
+        logging.info("interrupted")
 
     server.close()
 
-    udon.log.info("done")
+    logging.info("done")
 
-udon.log.init(foreground = True)
+udon.log.init(foreground = True, level = "DEBUG")
 udon.async.start(main)
