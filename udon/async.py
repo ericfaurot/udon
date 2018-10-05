@@ -15,26 +15,32 @@
 #
 import asyncio
 import json
+import logging
 import signal
 import time
 import types
 
-import udon.log
-import udon.run
+
+def _getLogger(logger):
+    if logger is None:
+        return logging.getLogger(__name__)
+    return logger
 
 _running = None
 def stop():
     _running.cancel()
 
-def start(func):
+def start(func, logger = None):
     global _running
     assert _running is None
 
-    udon.log.debug("async: starting")
+    logger = _getLogger(logger)
+
+    logger.debug("starting")
 
     def _signal(signame):
         def _():
-            udon.log.debug("async: got signal %s", signame)
+            logger.debug("got signal %s", signame)
             if _running:
                 _running.cancel()
         return _
@@ -47,20 +53,36 @@ def start(func):
         _running = asyncio.ensure_future(func())
         loop.run_until_complete(_running)
     except asyncio.CancelledError:
-        udon.log.debug("async: cancelled")
+        logger.debug("cancelled")
     else:
-        udon.log.debug("async: stopped normally")
+        logger.debug("stopped normally")
     finally:
-        udon.log.debug("async: closing event loop")
+        logger.debug("closing event loop")
         loop.close()
 
-    udon.log.debug("async: done")
+    logger.debug("done")
+
+
+def collect_future(future, logger = None):
+    logger = _getLogger(logger)
+    if future.cancelled():
+        logger.warning("FUTURE CANCELLED")
+    elif future.exception():
+        try:
+            raise future.exception()
+        except:
+            logger.exception("FUTURE EXCEPTION")
+    else:
+        result = future.result()
+        if result is not None:
+            logger.warning("FUTURE RESULT: %r", result)
 
 
 class JSONStreamProtocol(asyncio.Protocol):
 
     ibuf = None
     transport = None
+    logger = None
 
     LINEMAX = 2 ** 20
 
@@ -86,16 +108,16 @@ class JSONStreamProtocol(asyncio.Protocol):
                 raise
 
         if self.ibuf and len(self.ibuf) >= self.LINEMAX:
-            udon.log.warn('line too long: %d', len(self.ibuf))
+            _getLogger(self.logger).warning('line too long: %d', len(self.ibuf))
             self.transport.close()
 
     def send(self, obj):
         self.transport.write(json.dumps(obj).encode() + b'\n')
 
     def received(self, obj):
-        udon.log.info('received: %r', obj)
+        _getLogger(self.logger).info('received: %r', obj)
 
-##
+
 class Schedulable(object):
 
     timestamp = None
@@ -159,6 +181,7 @@ class Schedulable(object):
             self.schedule(self._period)
         if self._suspended:
             self.unschedule()
+
 
 class DataMixin(object):
 
@@ -239,9 +262,9 @@ class Tasklet(Schedulable, DataMixin):
             if isinstance(value, types.GeneratorType):
                 value = yield from value
         except asyncio.CancelledError:
-            udon.log.warn("async: cancelled: %r", self)
-        except Exception:
-            udon.log.exception("async: exception: %r", self)
+            self.thread.logger.warning("cancelled: %r", self)
+        except:
+            self.thread.logger.exception("exception: %r", self)
         del self._running
         self.run_count += 1
 
@@ -258,8 +281,9 @@ class Threadlet(object):
     _coro = None
     _stopping = False
 
-    def __init__(self, name = None):
+    def __init__(self, name = None, logger = None):
         self.name = name
+        self.logger = _getLogger(logger)
         self._schedulables = {}
         self._pending = set()
         self._scheduled = set()
@@ -284,7 +308,7 @@ class Threadlet(object):
                 events = yield from thread.idle()
 
         def default_done(future):
-            udon.log.future(future)
+            collect_future(future, self.logger)
 
         def run():
             if delay:
@@ -297,7 +321,7 @@ class Threadlet(object):
             try:
                 (when_done or default_done)(future)
             except:
-                udon.log.exception("async: done: %r", self)
+                self.logger.exception("done: %r", self)
             del self._coro
 
         self._coro = asyncio.ensure_future(run())
@@ -432,11 +456,11 @@ class Threadlet(object):
         del self._future
         if future.done():
             if future.cancelled():
-                udon.log.warn("%r._wakeup(): future cancelled", self)
+                self.logger.warning("%r._wakeup(): future cancelled", self)
             elif future.exception():
-                udon.log.warn("%r._wakeup(): future exception: %s", self, future.exception())
+                self.logger.warning("%r._wakeup(): future exception: %s", self, future.exception())
             else:
-                udon.log.warn("%r._wakeup(): future result: %r", self, future.result())
+                self.logger.warning("%r._wakeup(): future result: %r", self, future.result())
         else:
             future.set_result(None)
 

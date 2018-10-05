@@ -31,5 +31,5 @@ def main():
 
     udon.log.info("done")
 
-udon.log.init(foreground = True)
+udon.log.init(foreground = True, level = "DEBUG")
 udon.async.start(main)

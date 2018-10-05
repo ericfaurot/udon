@@ -235,5 +235,5 @@ def main():
     udon.log.info("exit")
 
 if __name__ == "__main__":
-    udon.log.init(foreground = True)
+    udon.log.init(foreground = True, level = "DEBUG")
     main()
