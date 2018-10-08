@@ -21,10 +21,9 @@ import time
 import types
 
 
-def _getLogger(logger):
-    if logger is None:
-        return logging.getLogger(__name__)
-    return logger
+def _logger(logger):
+    return logger if logger is not None else logging.getLogger(__name__)
+
 
 _running = None
 def stop():
@@ -34,7 +33,7 @@ def start(func, logger = None):
     global _running
     assert _running is None
 
-    logger = _getLogger(logger)
+    logger = _logger(logger)
 
     logger.debug("starting")
 
@@ -64,7 +63,7 @@ def start(func, logger = None):
 
 
 def collect_future(future, logger = None):
-    logger = _getLogger(logger)
+    logger = _logger(logger)
     if future.cancelled():
         logger.warning("FUTURE CANCELLED")
     elif future.exception():
@@ -108,14 +107,14 @@ class JSONStreamProtocol(asyncio.Protocol):
                 raise
 
         if self.ibuf and len(self.ibuf) >= self.LINEMAX:
-            _getLogger(self.logger).warning('line too long: %d', len(self.ibuf))
+            _logger(self.logger).warning('line too long: %d', len(self.ibuf))
             self.transport.close()
 
     def send(self, obj):
         self.transport.write(json.dumps(obj).encode() + b'\n')
 
     def received(self, obj):
-        _getLogger(self.logger).info('received: %r', obj)
+        _logger(self.logger).info('received: %r', obj)
 
 
 class Schedulable(object):
@@ -283,7 +282,7 @@ class Threadlet(object):
 
     def __init__(self, name = None, logger = None):
         self.name = name
-        self.logger = _getLogger(logger)
+        self.logger = _logger(logger)
         self._schedulables = {}
         self._pending = set()
         self._scheduled = set()
