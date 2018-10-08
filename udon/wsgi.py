@@ -15,10 +15,15 @@
 #
 import hashlib
 import importlib
+import logging
 import os
 import time
 
 import bottle
+
+
+def _logger(logger):
+    return logger if logger is not None else logging.getLogger(__name__)
 
 
 def run_bottle(app, **kwargs):
@@ -82,20 +87,21 @@ class LogMiddleware(object):
     def __call__(self, environ, handler):
         t0 = time.time()
         environ['wsgi.errors'] = self
+        logger = _logger(self.logger)
         ret = self.app(environ, handler)
         try:
             scheme, host, path, query_string, fragment = bottle.request.urlparts
-            self.logger.info("%.3f %s %s %s %d %d %s %s",
-                             time.time() - t0,
-                             environ["REMOTE_ADDR"],
-                             environ.get("HTTP_X_FORWARDED_FOR", "-"),
-                             bottle.request.method,
-                             bottle.response.status_code,
-                             bottle.response.content_length,
-                             host,
-                             bottle.request.path)
-        except Exception as exc:
-            self.logger.error("Failed to log result", exc_info = exc)
+            logger.info("%.3f %s %s %s %d %d %s %s",
+                        time.time() - t0,
+                        environ["REMOTE_ADDR"],
+                        environ.get("HTTP_X_FORWARDED_FOR", "-"),
+                        bottle.request.method,
+                        bottle.response.status_code,
+                        bottle.response.content_length,
+                        host,
+                        bottle.request.path)
+        except:
+            logger.exception("Failed to log result")
         return ret
 
     def write(self, err):
@@ -106,8 +112,8 @@ class LogMiddleware(object):
                 self.timestamp = timestamp
             self.stream.write(err)
             self.stream.flush()
-        except Exception as exc:
-            self.logger.error("Failed to log WSGI error", exc_info = exc)
+        except:
+            _logger(self.logger).exception("Failed to log WSGI error")
 
 def abort(code, message):
     bottle.abort(code, message)
@@ -337,7 +343,7 @@ class ResourceView:
 
         return None
 
-    def _iter_range(self, body, offset, count):
+    def _iter_range(self, body, offset, count, logger):
         try:
             body.seek(offset, 1)
             while count > 0:
@@ -347,7 +353,7 @@ class ResourceView:
                 count -= len(chunk)
                 yield chunk
         except:
-            app.log.exception()
+            _logger(logger).exception("EXCEPTION")
             raise
 
     def get(self, request = None):
@@ -379,7 +385,7 @@ class ResourceView:
             response.set_header("Content-Length", end - offset)
             response.set_header("Content-Range",  "bytes %d-%d/%d" % (offset, end - 1, self.size))
             response.status = "206 Partial Content"
-            response.body = self._iter_range(self.body, offset, end - offset)
+            response.body = self._iter_range(self.body, offset, end - offset, None)
         else:
             response.set_header("Content-Length", self.size)
             response.body = self.body
@@ -388,7 +394,6 @@ class ResourceView:
 
 
 def content_view(content):
-    # app.content.ContentFile
     fp = content.open()
     headers = { key: val for key, val in fp.headers }
     return ResourceView(fp,
