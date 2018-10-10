@@ -37,6 +37,7 @@ def api(path):
         return setup
     return _
 
+
 class APIStack(object):
 
     def __init__(self, prefix = "/"):
@@ -113,10 +114,18 @@ class LogMiddleware(object):
             self.stream.write(err)
             self.stream.flush()
         except:
-            _logger(self.logger).exception("Failed to log WSGI error")
+            _logger(self.logger).exception("Failed to write WSGI error")
+
+    def flush(self):
+        try:
+            self.stream.flush()
+        except:
+            _logger(self.logger).exception("Failed to flush WSGI error")
+
 
 def abort(code, message):
     bottle.abort(code, message)
+
 
 class Form(object):
 
@@ -309,6 +318,7 @@ def _make_etag(*parts):
         hash.update(str(part).encode('utf-8'))
     return hash.hexdigest()
 
+
 class ResourceView:
 
     def __init__(self, body, ctype, size, mtime, etag = None):
@@ -401,6 +411,7 @@ def content_view(content):
                         int(headers["Size"]),
                         int(headers["Timestamp"]),
                         etag = headers["ETag"])
+
 
 def file_view(path, ctype = 'application/octect-stream', etag = None):
     fp = open(path, "rb")
