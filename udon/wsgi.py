@@ -61,7 +61,44 @@ class APIStack(object):
         return self.app(environ, handler)
 
 
-class EnvMiddleware(object):
+class WSGIErrorStream:
+
+    def __init__(self, stream, autoflush = False, logger = None):
+        self.stream = stream
+        self.autoflush = autoflush
+        self.logger = _logger(logger)
+
+    def write(self, err):
+        try:
+            self.stream.write("WSGI ERROR ---- %s\n%s" % (time.ctime(), err))
+            if self.autoflush:
+                self.stream.flush()
+        except:
+            self.logger.exception("Failed to write WSGI error")
+
+    def flush(self):
+        try:
+            self.stream.flush()
+        except:
+            self.logger.exception("Failed to flush WSGI error")
+
+
+class WSGIErrorLogger:
+
+    def __init__(self, logger = None):
+        self.logger = _logger(logger)
+
+    def write(self, err):
+        try:
+            self.logger.error("WSGI ERROR: %s", err)
+        except:
+            self.logger.exception("Failed to write WSGI error")
+
+    def flush(self):
+        pass
+
+
+class EnvMiddleware:
 
     def __init__(self, app, environ = None):
         self.app = app
@@ -75,52 +112,36 @@ class EnvMiddleware(object):
         return self.app(environ, handler)
 
 
-class LogMiddleware(object):
+class LogMiddleware:
 
-    timestamp = 0
-    delay = 1.0
-
-    def __init__(self, app, logger, stream):
+    def __init__(self, app, logger = None):
         self.app = app
-        self.logger = logger
-        self.stream = stream
+        self.logger = _logger(logger)
 
     def __call__(self, environ, handler):
         t0 = time.time()
-        environ['wsgi.errors'] = self
-        logger = _logger(self.logger)
         ret = self.app(environ, handler)
         try:
-            scheme, host, path, query_string, fragment = bottle.request.urlparts
-            logger.info("%.3f %s %s %s %d %d %s %s",
-                        time.time() - t0,
-                        environ["REMOTE_ADDR"],
-                        environ.get("HTTP_X_FORWARDED_FOR", "-"),
-                        bottle.request.method,
-                        bottle.response.status_code,
-                        bottle.response.content_length,
-                        host,
-                        bottle.request.path)
+            dt = time.time() - t0
+            msg = self.format_message(environ, bottle.request, bottle.response, dt)
+            self.logger.info(msg, extra = { 'environ': environ,
+                                            'request': bottle.request,
+                                            'response': bottle.response,
+                                            'dt': dt })
         except:
-            logger.exception("Failed to log result")
+            self.logger.exception("Failed to log result")
         return ret
 
-    def write(self, err):
-        try:
-            timestamp = time.time()
-            if timestamp - self.timestamp > self.delay:
-                self.stream.write("-------- %s\n" % time.ctime())
-                self.timestamp = timestamp
-            self.stream.write(err)
-            self.stream.flush()
-        except:
-            _logger(self.logger).exception("Failed to write WSGI error")
-
-    def flush(self):
-        try:
-            self.stream.flush()
-        except:
-            _logger(self.logger).exception("Failed to flush WSGI error")
+    def format_message(self, environ, request, response, dt):
+        scheme, host, path, query_string, fragment = request.urlparts
+        return "%.3f %s %s %s %d %d %s %s" % (dt,
+                                              environ["REMOTE_ADDR"],
+                                              environ.get("HTTP_X_FORWARDED_FOR", "-"),
+                                              request.method,
+                                              response.status_code,
+                                              response.content_length,
+                                              host,
+                                              request.path)
 
 
 def abort(code, message):
