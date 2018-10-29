@@ -67,27 +67,30 @@ def test_5():
 @test()
 def test_6():
     thread = udon.async.Threadlet()
-    @thread.tasklet(period = .1)
+    @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
-        if task.run_count == 5:
+        if task["count"] == 5:
             thread.stop()
+        task["count"] += 1
     thread.start()
     thread.join()
 
 @test()
 def test_7():
     thread = udon.async.Threadlet()
-    @thread.tasklet(period = .1)
+    @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
-        if task.run_count == 5:
+        if task["count"] == 5:
             task.cancel()
-    @thread.tasklet(period = .1)
+        task["count"] += 1
+    @thread.tasklet(period = .1, count = 0)
     def tack(task):
         print("tack!")
-        if task.run_count == 10:
+        if task["count"] == 10:
             thread.stop()
+        task["count"] += 1
     thread.start()
     thread.join()
 
@@ -189,13 +192,14 @@ def test_10():
 @test()
 def test_11():
     thread = udon.async.Threadlet()
-    @thread.tasklet()
+    @thread.tasklet(count = 0)
     def tick(task):
-        if task.run_count == 10:
+        if task["count"] == 10:
             thread.stop()
             return
         print("tick, delay:", task['delay'])
         task['delay'] *= 1.2
+        task['count'] += 1
         task.schedule(task['delay'])
     thread['tick']['delay'] = .1
     thread.start()

@@ -234,7 +234,6 @@ class Event(Schedulable, DataMixin):
 
 class Tasklet(Schedulable, DataMixin):
 
-    run_count = 0
     _running = False
 
     def __init__(self, thread, name, func, params = None):
@@ -265,7 +264,6 @@ class Tasklet(Schedulable, DataMixin):
         except:
             self.thread.logger.exception("exception: %r", self)
         del self._running
-        self.run_count += 1
 
         # the task has cancelled itself.
         if self._cancelled:
@@ -406,7 +404,7 @@ class Threadlet(object):
             sname = name
             if sname is None:
                 sname = func.__name__
-            task = self._task(func, name = sname, params = None)
+            task = self._task(func, name = sname, params = kwargs)
             task.set_period(period)
             task.schedule(delay)
             if suspend:
