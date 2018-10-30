@@ -336,7 +336,7 @@ class Threadlet(object):
             loop = asyncio.get_event_loop()
         loop.run_until_complete(self._coro)
 
-    def wait(self):
+    def __await__(self):
         yield from self._coro
 
     async def idle(self):

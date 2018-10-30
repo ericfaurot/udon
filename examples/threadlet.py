@@ -230,6 +230,25 @@ def test_12():
     thread.start(run)
     thread.join()
 
+@test()
+def test_13():
+
+    async def run1(thread):
+        logging.info("run1: starting...")
+        await asyncio.sleep(1)
+        logging.info("run1: done")
+
+    async def run2(thread):
+        logging.info("run2: waiting thread1...")
+        await thread1
+        logging.info("run2: done")
+
+    thread1 = udon.asynchronous.Threadlet()
+    thread1.start(run1)
+    thread2 = udon.asynchronous.Threadlet()
+    thread2.start(run2)
+    thread2.join()
+
 def main():
     logging.info("starting")
 
