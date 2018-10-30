@@ -250,15 +250,17 @@ class Tasklet(Schedulable, DataMixin):
     def is_running(self):
         return self._running
 
-    def run(self):
+    async def run(self):
         if self._suspended or self._cancelled:
             return
 
         self._running = True
         try:
             value = self.func(self)
-            if isinstance(value, types.GeneratorType):
-                value = yield from value
+            if isinstance(value, types.CoroutineType):
+                value = await value
+            elif isinstance(value, types.GeneratorType):
+                value = await value
         except asyncio.CancelledError:
             self.thread.logger.warning("cancelled: %r", self)
         except:
@@ -300,17 +302,17 @@ class Threadlet(object):
     def start(self, func = None, when_done = None, delay = 0):
         assert not self.is_running()
 
-        def default_func(thread):
+        async def default_func(thread):
             while not thread.is_stopping():
-                events = yield from thread.idle()
+                events = await thread.idle()
 
         def default_done(future):
             collect_future(future, self.logger)
 
-        def run():
+        async def run():
             if delay:
-                yield from asyncio.sleep(delay)
-            yield from (func or default_func)(self)
+                await asyncio.sleep(delay)
+            await (func or default_func)(self)
 
         def done(future):
             self._pending.clear()
@@ -337,7 +339,7 @@ class Threadlet(object):
     def wait(self):
         yield from self._coro
 
-    def idle(self):
+    async def idle(self):
         """
         Block until some event or signals occurs.
         Run registered tasks automatically.
@@ -353,7 +355,7 @@ class Threadlet(object):
 
             if not self._pending:
                 # wait for an event to occur
-                yield from self._sleep()
+                await self._sleep()
                 if self._stopping:
                     return ()
                 continue
@@ -362,7 +364,7 @@ class Threadlet(object):
             events = set()
             for item in self._pending:
                 if isinstance(item, Tasklet):
-                    yield from item.run()
+                    await item.run()
                     if self._stopping:
                         return ()
                 elif isinstance(item, Event):
@@ -428,15 +430,15 @@ class Threadlet(object):
         self._pending.update(ready)
         self._scheduled.difference_update(ready)
 
-    def _sleep(self):
+    async def _sleep(self):
         self._future = asyncio.Future()
         try:
             if self._scheduled:
                 timestamp = min(entry.timestamp for entry in self._scheduled)
                 delay = max(0.0001, timestamp - time.time())
-                yield from asyncio.wait_for(self._future, delay)
+                await asyncio.wait_for(self._future, delay)
             else:
-                yield from self._future
+                await self._future
         except asyncio.TimeoutError:
             pass
         except asyncio.CancelledError:

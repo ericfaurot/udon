@@ -3,18 +3,19 @@ import itertools
 import logging
 
 import udon.log
-import udon.async
+import udon.asynchronous
 
-def coro(name, period):
+
+async def coro(name, period):
     for n in itertools.count():
         logging.info("%s: %d", name, n)
         if (name, n) == ("task C", 4):
-            udon.async.stop()
-        yield from asyncio.sleep(period)
+            udon.asynchronous.stop()
+        await asyncio.sleep(period)
 
 tasks = []
 
-def main():
+async def main():
     logging.info("starting")
 
     tasks.append(asyncio.ensure_future(coro("task A", 1)))
@@ -22,7 +23,7 @@ def main():
     tasks.append(asyncio.ensure_future(coro("task C", 1.7)))
 
     try:
-        yield from asyncio.sleep(10)
+        await asyncio.sleep(10)
     except asyncio.CancelledError:
         logging.info("interrupted")
 
@@ -33,4 +34,4 @@ def main():
     logging.info("done")
 
 udon.log.init(foreground = True, level = "DEBUG")
-udon.async.start(main)
+udon.asynchronous.start(main)

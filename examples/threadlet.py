@@ -3,7 +3,7 @@ import itertools
 import logging
 
 import udon.log
-import udon.async
+import udon.asynchronous
 
 TESTS = []
 def test():
@@ -13,39 +13,39 @@ def test():
 
 @test()
 def test_0():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.start()
     thread.stop()
     thread.join()
 
 @test()
 def test_1():
-    def run(thread):
-        yield from thread.idle()
-    thread = udon.async.Threadlet()
+    async def run(thread):
+        await thread.idle()
+    thread = udon.asynchronous.Threadlet()
     thread.start(run)
     thread.stop()
     thread.join()
 
 @test()
 def test_2():
-    def run(thread):
+    async def run(thread):
         thread.stop()
-        yield from thread.idle()
-    thread = udon.async.Threadlet()
+        await thread.idle()
+    thread = udon.asynchronous.Threadlet()
     thread.start(run)
     thread.join()
 
 @test()
 def test_3():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.schedule(thread.stop, delay = 1)
     thread.start()
     thread.join()
 
 @test()
 def test_4():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.schedule(thread.stop, delay = 1)
     def tick():
         print("tick!")
@@ -56,7 +56,7 @@ def test_4():
 
 @test()
 def test_5():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.schedule(thread.stop, delay = 1)
     @thread.tasklet(period = .1)
     def tick(task):
@@ -66,7 +66,7 @@ def test_5():
 
 @test()
 def test_6():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
@@ -78,7 +78,7 @@ def test_6():
 
 @test()
 def test_7():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
@@ -97,10 +97,10 @@ def test_7():
 @test()
 def test_8():
 
-    thread = udon.async.Threadlet()
-    def run(thread):
+    thread = udon.asynchronous.Threadlet()
+    async def run(thread):
         while not thread.is_stopping():
-            events = yield from thread.idle()
+            events = await thread.idle()
             for event in events:
                 logging.info("%s: %s",
                              'signal' if event.is_signal() else 'event',
@@ -108,7 +108,7 @@ def test_8():
         logging.info("done")
     thread.start(run)
 
-    thread2 = udon.async.Threadlet()
+    thread2 = udon.asynchronous.Threadlet()
     @thread2.tasklet(period = .2)
     def tick(task):
         thread.signal("blip")
@@ -122,7 +122,7 @@ def test_8():
 @test()
 def test_9():
 
-    def run(thread):
+    async def run(thread):
         stop = thread.event("stop")
         ev0 = thread.event("ev0")
         ev1 = thread.event("ev1")
@@ -132,7 +132,7 @@ def test_9():
         ev0.schedule(.1)
         ev2.schedule()
         while not thread.is_stopping():
-            events = yield from thread.idle()
+            events = await thread.idle()
             for event in events:
                 logging.info("event: %s", event['name'])
                 if event is stop:
@@ -147,14 +147,14 @@ def test_9():
 
         logging.info("done")
 
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.start(run)
     thread.join()
 
 @test()
 def test_10():
 
-    def run(thread):
+    async def run(thread):
 
         @thread.tasklet(delay = 5)
         def stop(task):
@@ -179,19 +179,19 @@ def test_10():
             logging.info("task: ev2")
 
         while not thread.is_stopping():
-            events = yield from thread.idle()
+            events = await thread.idle()
             for event in events:
                 logging.info("event: %s", event['name'])
 
         logging.info("done")
 
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.start(run)
     thread.join()
 
 @test()
 def test_11():
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     @thread.tasklet(count = 0)
     def tick(task):
         if task["count"] == 10:
@@ -208,7 +208,7 @@ def test_11():
 @test()
 def test_12():
 
-    def run(thread):
+    async def run(thread):
         evt = thread.event("foo")
         evt.set_period(.2)
         evt.schedule()
@@ -217,7 +217,7 @@ def test_12():
         evt.schedule()
         n = 0
         while not thread.is_stopping():
-            events = yield from thread.idle()
+            events = await thread.idle()
             for event in events:
                 logging.info("%s: %s",
                              'signal' if event.is_signal() else 'event',
@@ -226,7 +226,7 @@ def test_12():
             if n == 10:
                 thread.stop()
 
-    thread = udon.async.Threadlet()
+    thread = udon.asynchronous.Threadlet()
     thread.start(run)
     thread.join()
 
