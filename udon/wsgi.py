@@ -122,17 +122,18 @@ class LogMiddleware:
         t0 = time.time()
         ret = self.app(environ, handler)
         try:
-            dt = time.time() - t0
-            msg = self.format_message(environ, bottle.request, bottle.response, dt)
-            self.logger.info(msg, extra = { 'environ': environ,
-                                            'request': bottle.request,
-                                            'response': bottle.response,
-                                            'dt': dt })
+            self.log(environ, ret, time.time() - t0)
         except:
             self.logger.exception("Failed to log result")
         return ret
 
-    def format_message(self, environ, request, response, dt):
+    def log(self, environ, ret, dt):
+        msg = self.format_message(environ, ret, dt)
+        self.logger.info(msg)
+
+    def format_message(self, environ, ret, dt):
+        request = bottle.request
+        response = bottle.response
         scheme, host, path, query_string, fragment = request.urlparts
         return "%.3f %s %s %s %d %d %s %s" % (dt,
                                               environ["REMOTE_ADDR"],
