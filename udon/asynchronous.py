@@ -235,17 +235,17 @@ class Event(Schedulable, DataMixin):
 class Tasklet(Schedulable, DataMixin):
 
     _running = False
+    _handler = None
 
-    def __init__(self, thread, name, func, params = None):
+    def __init__(self, thread, name, params = None):
         Schedulable.__init__(self, thread, name)
-        self.func = func
         if params:
             self.update(params)
         if name is not None:
             self['name'] = name
 
-    def set_function(self, func):
-        self.func = func
+    def set_handler(self, handler):
+        self._handler = handler
 
     def is_running(self):
         return self._running
@@ -256,7 +256,7 @@ class Tasklet(Schedulable, DataMixin):
 
         self._running = True
         try:
-            value = self.func(self)
+            value = self._handler(self)
             if isinstance(value, types.CoroutineType):
                 value = await value
             elif isinstance(value, types.GeneratorType):
@@ -379,7 +379,8 @@ class Threadlet(object):
                 return events
 
     def _task(self, func, name = None, params = None):
-        task = Tasklet(self, name, func, params = params)
+        task = Tasklet(self, name, params = params)
+        task.set_handler(func)
         if name is not None:
             if name in self._schedulables:
                 raise KeyError(name)
