@@ -125,10 +125,8 @@ class Schedulable(object):
     _suspended = False
     _cancelled = False
 
-    def __init__(self, thread, name = None):
+    def __init__(self, thread):
         self.thread = thread
-        if name is not None:
-            self.name = name
 
     def set_period(self, period = None):
         self._period = period
@@ -150,7 +148,7 @@ class Schedulable(object):
             return
         self._cancelled = True
         self.unschedule()
-        self.thread._uninstall(self, self.name)
+        self.thread._uninstall(self)
 
     def unschedule(self):
         self.thread._scheduled.discard(self)
@@ -213,18 +211,12 @@ class DataMixin(object):
         return self._data[key]
 
 
-class Event(Schedulable, DataMixin):
+class EventMixin:
 
-    def __init__(self, thread, name, signal = False, params = None):
-        Schedulable.__init__(self, thread, name)
-        self._signal = signal
-        if params:
-            self.update(params)
-        if name is not None:
-            self['name'] = name
+    thread = None
 
     def is_signal(self):
-        return self._signal
+        return False
 
     def trigger(self):
         self.timestamp = time.time()
@@ -233,17 +225,33 @@ class Event(Schedulable, DataMixin):
         self.thread._wakeup()
 
 
+class Event(Schedulable, EventMixin, DataMixin):
+
+    def __init__(self, thread, params = None):
+        Schedulable.__init__(self, thread)
+        if params:
+            self.update(params)
+
+class Signal(EventMixin, DataMixin):
+
+    def __init__(self, thread, params = None):
+        self.thread = thread
+        if params:
+            self.update(params)
+
+    def is_signal(self):
+        return True
+
+
 class Tasklet(Schedulable, DataMixin):
 
     _running = False
     _handler = None
 
-    def __init__(self, thread, name, params = None):
-        Schedulable.__init__(self, thread, name)
+    def __init__(self, thread, params = None):
+        Schedulable.__init__(self, thread)
         if params:
             self.update(params)
-        if name is not None:
-            self['name'] = name
 
     def set_handler(self, handler):
         self._handler = handler
@@ -285,6 +293,7 @@ class Threadlet(object):
         self.name = name
         self.logger = _logger(logger)
         self._schedulables = {}
+        self._schedulables_rev = {}
         self._pending = set()
         self._scheduled = set()
 
@@ -304,8 +313,8 @@ class Threadlet(object):
         assert not self.is_running()
 
         async def default_func(thread):
-            while not thread.is_stopping():
-                await thread.idle()
+            async for event in thread.flow():
+                pass
 
         def default_done(future):
             collect_future(future, self.logger)
@@ -344,66 +353,72 @@ class Threadlet(object):
         yield from self._coro
 
     async def idle(self):
-        """
-        Block until some event or signals occurs.
-        Run registered tasks automatically.
+        async for event in self.flow():
+            pass
 
-        Return the set of events/signals that were triggered,
-        or () when the thread is stopping.
-        """
-        if self._stopping:
-            return ()
-
-        while True:
-            self._process_scheduled()
-
-            if not self._pending:
-                # wait for an event to occur
-                await self._sleep()
-                if self._stopping:
-                    return ()
+    _ready = None
+    async def flow(self):
+        while not self._stopping:
+            if not self._ready:
+                # wait for the next batch of events
+                self._ready = await self._wait_for_events()
                 continue
+            item = self._ready.pop(0)
+            if isinstance(item, Tasklet):
+                await item.run()
+            elif isinstance(item, Signal):
+                yield item
+            elif isinstance(item, Event):
+                yield item
+                item._reschedule()
 
-            # process all pending events
-            events = set()
-            for item in self._pending:
-                if isinstance(item, Tasklet):
-                    await item.run()
-                    if self._stopping:
-                        return ()
-                elif isinstance(item, Event):
-                    events.add(item)
-                    if not item._signal:
-                        item._reschedule()
-            self._pending.clear()
-
-            # clear pending events and return the set of events if necessary
-            events = { evt for evt in events if not evt._cancelled }
+    async def _wait_for_events(self):
+        while not self._stopping:
+            # get the set of scheduled events that are ready
+            now = time.time()
+            events = { evt for evt in self._scheduled if evt.timestamp <= now }
+            self._scheduled.difference_update(events)
+            # if there are pending events or signals, add them to the set
+            if self._pending:
+                events.update(self._pending)
+                self._pending.clear()
             if events:
-                return events
+                return sorted(events, key = lambda x: x.timestamp)
+            await self._sleep()
 
-    def _task(self, func, name = None, params = None):
-        task = Tasklet(self, name, params = params)
+    def _task(self, func, name, params = None):
+        task = Tasklet(self, params = params)
         task.set_handler(func)
         if name is not None:
-            if name in self._schedulables:
-                raise KeyError(name)
-            self._schedulables[name] = task
+            self._register_schedulable(name, task)
         return task
 
-    def _event(self, name = None, signal = False, params = None):
-        evt = Event(self, name, signal = signal, params = params)
-        if not signal and name is not None:
-            if name in self._schedulables:
-                raise KeyError(name)
-            self._schedulables[name] = evt
-        return evt
+    def _event(self, name, params = None):
+        event = Event(self, params = params)
+        if name is not None:
+            self._register_schedulable(name, event)
+        return event
+
+    def _register_schedulable(self, name, schedulable):
+        if name in self._schedulables:
+            raise KeyError(name)
+        self._schedulables[name] = schedulable
+        self._schedulables_rev[schedulable] = name
+
+    def _unregister_schedulable(self, schedulable):
+        name = self._schedulables_rev.pop(schedulable, None)
+        if name is not None:
+            self._schedulables.pop(name)
 
     def event(self, name = None, **kwargs):
-        return self._event(name = name, params = kwargs)
+        if name is not None:
+            kwargs["name"] = name
+        return self._event(name, params = kwargs)
 
     def signal(self, name = None, **kwargs):
-        sig = Event(self, name, signal = True, params = kwargs)
+        if name is not None:
+            kwargs["name"] = name
+        sig = Signal(self, params = kwargs)
         sig.trigger()
 
     def tasklet(self, name = None, suspend = False, delay = 0, period = None, **kwargs):
@@ -411,7 +426,7 @@ class Threadlet(object):
             sname = name
             if sname is None:
                 sname = func.__name__
-            task = self._task(func, name = sname, params = kwargs)
+            task = self._task(func, sname, params = kwargs)
             task.set_period(period)
             task.schedule(delay)
             if suspend:
@@ -425,15 +440,9 @@ class Threadlet(object):
         """
         def _(task):
             return func()
-        task = self._task(_, name = name)
+        task = self._task(_, name)
         task.schedule(delay)
         return task
-
-    def _process_scheduled(self):
-        now = time.time()
-        ready = { evt for evt in self._scheduled if evt.timestamp <= now }
-        self._pending.update(ready)
-        self._scheduled.difference_update(ready)
 
     async def _sleep(self):
         self._future = asyncio.Future()
@@ -468,7 +477,7 @@ class Threadlet(object):
         else:
             future.set_result(None)
 
-    def _uninstall(self, schedulable, name):
+    def _uninstall(self, schedulable):
         assert schedulable.thread is self
         del schedulable.thread
-        self._schedulables.pop(name, None)
+        self._unregister_schedulable(schedulable)

@@ -99,12 +99,10 @@ def test_8():
 
     thread = udon.asynchronous.Threadlet()
     async def run(thread):
-        while not thread.is_stopping():
-            events = await thread.idle()
-            for event in events:
-                logging.info("%s: %s",
-                             'signal' if event.is_signal() else 'event',
-                              event['name'])
+        async for event in thread.flow():
+            logging.info("%s: %s",
+                         'signal' if event.is_signal() else 'event',
+                         event['name'])
         logging.info("done")
     thread.start(run)
 
@@ -131,20 +129,17 @@ def test_9():
         stop.schedule(5)
         ev0.schedule(.1)
         ev2.schedule()
-        while not thread.is_stopping():
-            events = await thread.idle()
-            for event in events:
-                logging.info("event: %s", event['name'])
-                if event is stop:
-                    return
-                elif event is ev0:
-                    ev1.schedule(1)
-                elif event is ev1:
-                    ev0.schedule(1)
-                    ev2.unschedule()
-                elif event is ev2:
-                    ev2.schedule(.1)
-
+        async for event in thread.flow():
+            logging.info("event: %s", event['name'])
+            if event is stop:
+                break
+            elif event is ev0:
+                ev1.schedule(1)
+            elif event is ev1:
+                ev0.schedule(1)
+                ev2.unschedule()
+            elif event is ev2:
+                ev2.schedule(.1)
         logging.info("done")
 
     thread = udon.asynchronous.Threadlet()
@@ -178,10 +173,8 @@ def test_10():
         def ev2(task):
             logging.info("task: ev2")
 
-        while not thread.is_stopping():
-            events = await thread.idle()
-            for event in events:
-                logging.info("event: %s", event['name'])
+        async for event in thread.flow():
+            logging.info("event: %s", event['name'])
 
         logging.info("done")
 
@@ -216,12 +209,10 @@ def test_12():
         evt.set_period(.5)
         evt.schedule()
         n = 0
-        while not thread.is_stopping():
-            events = await thread.idle()
-            for event in events:
-                logging.info("%s: %s",
-                             'signal' if event.is_signal() else 'event',
-                             event['name'])
+        async for event in thread.flow():
+            logging.info("%s: %s",
+                         'signal' if event.is_signal() else 'event',
+                         event['name'])
             n += 1
             if n == 10:
                 thread.stop()
