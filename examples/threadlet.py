@@ -58,39 +58,39 @@ def test_4():
 def test_5():
     thread = udon.asynchronous.Threadlet()
     thread.schedule(thread.stop, delay = 1)
-    @thread.tasklet(period = .1)
     def tick(task):
         print("tick!")
+    thread.set_tasklet(tick, period = .1)
     thread.start()
     thread.join()
 
 @test()
 def test_6():
     thread = udon.asynchronous.Threadlet()
-    @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
         if task["count"] == 5:
-            thread.stop()
+            task.thread.stop()
         task["count"] += 1
+    thread.set_tasklet(tick, period = .1, count = 0)
     thread.start()
     thread.join()
 
 @test()
 def test_7():
-    thread = udon.asynchronous.Threadlet()
-    @thread.tasklet(period = .1, count = 0)
     def tick(task):
         print("tick!")
         if task["count"] == 5:
             task.cancel()
         task["count"] += 1
-    @thread.tasklet(period = .1, count = 0)
     def tack(task):
         print("tack!")
         if task["count"] == 10:
-            thread.stop()
+            task.thread.stop()
         task["count"] += 1
+    thread = udon.asynchronous.Threadlet()
+    thread.set_tasklet(tick, period = .1, count = 0)
+    thread.set_tasklet(tack, period = .1, count = 0)
     thread.start()
     thread.join()
 
@@ -106,10 +106,10 @@ def test_8():
         logging.info("done")
     thread.start(run)
 
-    thread2 = udon.asynchronous.Threadlet()
-    @thread2.tasklet(period = .2)
     def tick(task):
         thread.signal("blip")
+    thread2 = udon.asynchronous.Threadlet()
+    thread2.set_tasklet(tick, period = .2)
     thread2.schedule(thread.stop, delay = 1)
     thread2.start()
 
@@ -184,16 +184,16 @@ def test_10():
 
 @test()
 def test_11():
-    thread = udon.asynchronous.Threadlet()
-    @thread.tasklet(count = 0)
     def tick(task):
         if task["count"] == 10:
-            thread.stop()
+            task.thread.stop()
             return
         print("tick, delay:", task['delay'])
         task['delay'] *= 1.2
         task['count'] += 1
         task.schedule(task['delay'])
+    thread = udon.asynchronous.Threadlet()
+    thread.set_tasklet(tick, count = 0)
     thread['tick']['delay'] = .1
     thread.start()
     thread.join()

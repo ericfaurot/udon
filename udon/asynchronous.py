@@ -249,8 +249,7 @@ class Threadlet(object):
     _coro = None
     _stopping = False
 
-    def __init__(self, name = None, logger = None):
-        self.name = name
+    def __init__(self, logger = None):
         self.logger = _logger(logger)
         self._schedulables = {}
         self._schedulables_rev = {}
@@ -394,6 +393,9 @@ class Threadlet(object):
             return func
         return _
 
+    def set_tasklet(self, func, **kwargs):
+        self.tasklet(**kwargs)(func)
+
     def schedule(self, func, delay = 0, name = None):
         """
         Register an delayed call
@@ -441,3 +443,27 @@ class Threadlet(object):
         assert schedulable.thread is self
         del schedulable.thread
         self._unregister_schedulable(schedulable)
+
+
+class ThreadMixin:
+
+    __thread = None
+
+    @property
+    def thread(self):
+        if self.__thread is None:
+            self.__thread = Threadlet()
+        return self.__thread
+
+    def thread_start(self):
+        self.thread.start(self.thread_run, when_done = self.__thread_exit)
+
+    def __thread_exit(self, future):
+        collect_future(future)
+        self.thread_exit(self.thread)
+
+    async def thread_run(self, thread):
+        await thread.idle()
+
+    def thread_exit(self, thread):
+        pass
