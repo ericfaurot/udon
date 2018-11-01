@@ -14,6 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 import asyncio
+import inspect
 import json
 import logging
 import signal
@@ -304,7 +305,7 @@ class Threadlet(object):
 
         async def default_func(thread):
             while not thread.is_stopping():
-                events = await thread.idle()
+                await thread.idle()
 
         def default_done(future):
             collect_future(future, self.logger)
@@ -322,6 +323,9 @@ class Threadlet(object):
             except:
                 self.logger.exception("done: %r", self)
             del self._coro
+
+        if func is not None and not (inspect.iscoroutinefunction(func)):
+            raise TypeError("not a coroutine function")
 
         self._coro = asyncio.ensure_future(run())
         self._coro.add_done_callback(done)
