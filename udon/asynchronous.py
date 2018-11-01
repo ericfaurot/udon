@@ -15,7 +15,6 @@
 #
 import asyncio
 import inspect
-import json
 import logging
 import signal
 import time
@@ -78,7 +77,7 @@ def collect_future(future, logger = None):
             logger.warning("FUTURE RESULT: %r", result)
 
 
-class Schedulable(object):
+class Schedulable:
 
     timestamp = None
     _period = None
@@ -141,7 +140,7 @@ class Schedulable(object):
             self.unschedule()
 
 
-class DataMixin(object):
+class DataMixin:
 
     _data =  None
 
@@ -243,7 +242,7 @@ class Tasklet(Schedulable, DataMixin):
         self._reschedule()
 
 
-class Threadlet(object):
+class Threadlet:
 
     _future = None
     _coro = None
@@ -272,8 +271,7 @@ class Threadlet(object):
         assert not self.is_running()
 
         async def default_func(thread):
-            async for event in thread.flow():
-                pass
+            await thread.idle()
 
         def default_done(future):
             collect_future(future, self.logger)
@@ -292,7 +290,7 @@ class Threadlet(object):
                 self.logger.exception("done: %r", self)
             del self._coro
 
-        if func is not None and not (inspect.iscoroutinefunction(func)):
+        if func is not None and not inspect.iscoroutinefunction(func):
             raise TypeError("not a coroutine function")
 
         self._coro = asyncio.ensure_future(run())
@@ -312,7 +310,7 @@ class Threadlet(object):
         yield from self._coro
 
     async def idle(self):
-        async for event in self.flow():
+        async for _ in self.flow():
             pass
 
     _ready = None
