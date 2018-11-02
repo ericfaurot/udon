@@ -17,7 +17,7 @@
 import heapq
 
 
-class PriorityQueue(object):
+class PriorityQueue:
 
     def __init__(self):
         self.heap = []
@@ -35,16 +35,11 @@ class PriorityQueue(object):
         priority, item = self.heap[0]
         return item, priority
 
-    def pull(self):
+    def pop(self):
         priority, item = heapq.heappop(self.heap)
         return item, priority
 
-    def __iter__(self):
-        while self.heap:
-            priority, item = heapq.heappop(self.heap)
-            yield item, priority
-
-    def pull_until(self, priority_max):
+    def pop_until(self, priority_max):
         while self.heap:
             priority, item = self.heap[0]
             if priority > priority_max:
@@ -52,38 +47,50 @@ class PriorityQueue(object):
             heapq.heappop(self.heap)
             yield item, priority
 
+    def __iter__(self):
+        while self.heap:
+            priority, item = heapq.heappop(self.heap)
+            yield item, priority
 
-class DoublyLinkedList(object):
 
-    def __init__(self):
-        self.head = None
-        self.tail = None
+_UNDEFINED = object()
+class DListNode:
+
+    __slots__ = "prev", "next", "item"
+
+    def __init__(self, item = _UNDEFINED):
+        if item is not _UNDEFINED:
+            self.item = item
+
+    def remove(self):
+        self.prev.next = self.next
+        self.next.prev = self.prev
+
+    def insert_before(self, node):
+        self.next = node
+        self.prev = prev = node.prev
+        prev.next = node.prev = self
+
+    def insert_after(self, node):
+        self.prev = node
+        self.next = next = node.next
+        next.prev = node.next = self
+
+
+class DoublyLinkedList:
+
+    def __init__(self, entries = ()):
+        self.head = DListNode()
+        self.tail = DListNode()
+        self.head.next = self.tail
+        self.tail.prev = self.head
         self.size = 0
+        for entry in entries:
+            self.insert_tail(entry)
 
     def _remove_node(self, node):
-        if node is self.head:
-            self.head = node[1]
-        else:
-            node[0][1] = node[1]
-        if node is self.tail:
-            self.tail = node[0]
-        else:
-            node[1][0] = node[0]
+        node.remove()
         self.size -= 1
-
-    def _insert_node_between(self, node, node_prev, node_next):
-        if node_prev is None:
-            self.head = node
-        else:
-            node[0] = node_prev
-            node_prev[1] = node
-
-        if node_next is None:
-            self.tail = node
-        else:
-            node[1] = node_next
-            node_next[0] = node
-        self.size += 1
 
     def __len__(self):
         return self.size
@@ -92,58 +99,74 @@ class DoublyLinkedList(object):
         return bool(self.size)
 
     def peek_head(self):
-        return self.head[2]
+        try:
+            return self.head.next.item
+        except AttributeError:
+            raise IndexError("peek from empty doubly-linked list")
 
     def pop_head(self):
-        node = self.head
+        node = self.head.next
+        if node is self.tail:
+            raise IndexError("pop from empty doubly-linked list")
         self._remove_node(node)
-        return node[2]
+        return node.item
 
     def pop_head_n(self, count):
         for _ in range(count):
-            if not self.head:
+            try:
+                yield self.pop_head()
+            except IndexError:
                 break
-            yield self.pop_head()
 
     def peek_tail(self):
-        return self.tail[2]
+        try:
+            return self.tail.prev.item
+        except AttributeError:
+            raise IndexError("peek from empty doubly-linked list")
 
     def pop_tail(self):
-        node = self.tail
+        node = self.tail.prev
+        if node is self.head:
+            raise IndexError("pop from empty doubly-linked list")
         self._remove_node(node)
-        return node[2]
+        return node.item
 
     def pop_tail_n(self, count):
         for _ in range(count):
-            if not self.tail:
+            try:
+                yield self.pop_tail()
+            except IndexError:
                 break
-            yield self.pop_tail()
 
     def remove(self, node):
         self._remove_node(node)
 
-    def insert_after(self, elt, node_prev):
-        node = [ None, None, elt ]
-        self._insert_node_between(node, node_prev, node_prev[1])
+    def insert_after(self, entry, node_prev):
+        node = DListNode(entry)
+        node.insert_after(node_prev)
+        self.size += 1
         return node
 
-    def insert_before(self, elt, node_next):
-        node = [ None, None, elt ]
-        self._insert_node_between(node, node_next[0], node_next)
+    def insert_before(self, entry, node_next):
+        node = DListNode(entry)
+        node.insert_before(node_next)
+        self.size += 1
         return node
 
-    def insert_head(self, elt):
-        node = [ None, None, elt ]
-        self._insert_node_between(node, None, self.head)
-        return node
+    def insert_head(self, entry):
+        return self.insert_after(entry, self.head)
 
-    def insert_tail(self, elt):
-        node = [ None, None, elt ]
-        self._insert_node_between(node, self.tail, None)
-        return node
+    def insert_tail(self, entry):
+        return self.insert_before(entry, self.tail)
 
     def __iter__(self):
-        node = self.head
-        while node:
-            yield node[2]
-            node = node[1]
+        node = self.head.next
+        while node is not self.tail:
+            yield node.item
+            node = node.next
+
+    def __reversed__(self):
+        node = self.tail.prev
+        while node is not self.head:
+            yield node.item
+            node = node.prev
