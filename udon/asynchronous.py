@@ -247,6 +247,7 @@ class Threadlet:
     _future = None
     _coro = None
     _stopping = False
+    _ready = None
 
     def __init__(self, logger = None):
         self.logger = _logger(logger)
@@ -310,11 +311,10 @@ class Threadlet:
         yield from self._coro
 
     async def idle(self):
-        async for _ in self.flow():
+        async for _ in self:
             pass
 
-    _ready = None
-    async def flow(self):
+    async def __aiter__(self):
         while not self._stopping:
             if not self._ready:
                 # wait for the next batch of events

@@ -99,7 +99,7 @@ def test_8():
 
     thread = udon.asynchronous.Threadlet()
     async def run(thread):
-        async for event in thread.flow():
+        async for event in thread:
             logging.info("%s: %s",
                          'signal' if event.is_signal() else 'event',
                          event['name'])
@@ -129,7 +129,7 @@ def test_9():
         stop.schedule(5)
         ev0.schedule(.1)
         ev2.schedule()
-        async for event in thread.flow():
+        async for event in thread:
             logging.info("event: %s", event['name'])
             if event is stop:
                 break
@@ -173,7 +173,7 @@ def test_10():
         def ev2(task):
             logging.info("task: ev2")
 
-        async for event in thread.flow():
+        async for event in thread:
             logging.info("event: %s", event['name'])
 
         logging.info("done")
@@ -209,7 +209,7 @@ def test_12():
         evt.set_period(.5)
         evt.schedule()
         n = 0
-        async for event in thread.flow():
+        async for event in thread:
             logging.info("%s: %s",
                          'signal' if event.is_signal() else 'event',
                          event['name'])

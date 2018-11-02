@@ -51,7 +51,7 @@ class TestThreadlet(unittest.TestCase):
         def _signal():
             thread.signal("foo")
         async def _main(thread):
-            async for event in thread.flow():
+            async for event in thread:
                 self.assertTrue(event.is_signal())
                 self.assertEqual(event['name'], "foo")
                 break
@@ -70,11 +70,11 @@ class TestThreadlet(unittest.TestCase):
 
         seen = []
         async def _main(thread):
-            async for event in thread.flow():
+            async for event in thread:
                 seen.append(event["name"])
                 if event["name"] == "bar":
                     break
-            async for event in thread.flow():
+            async for event in thread:
                 seen.append(event["name"])
 
         thread = udon.asynchronous.Threadlet()
