@@ -108,7 +108,7 @@ class ContentFile(object):
             fp.close()
             raise
 
-    def write(self, body, meta = (), chunk_size=2**16):
+    def write(self, body, meta = (), chunk_size=2**16, expect_size = None):
 
         if isinstance(body, bytes):
             size = len(body)
@@ -119,7 +119,10 @@ class ContentFile(object):
             size = body.tell() - offset
             body.seek(offset)
             cksum = hashlib.sha256()
-    
+
+        if expect_size not in (None, size):
+            raise ValueError("Content has incorrect size")
+
         hdrs = []
         hdrs.append("Checksum-SHA256: %s" % cksum.hexdigest())
         hdrs.append("Timestamp: %d" % int(time.time()))
