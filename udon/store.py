@@ -80,7 +80,10 @@ class AbstractStore(object):
         """
         Remove the key
         """
-        return os.unlink(self._filename(key))
+        try:
+            os.unlink(self._filename(key))
+        except FileNotFoundError:
+            raise KeyError(key)
 
     def has(self, key):
         """
@@ -92,13 +95,19 @@ class AbstractStore(object):
         """
         Open the file given by it's key for reading.
         """
-        return open(self._filename(key), "rb")
+        try:
+            return open(self._filename(key), "rb")
+        except FileNotFoundError:
+            raise KeyError(key)
 
     def stat(self, key):
         """
         Return the result of os.stat() in the file.
         """
-        return os.stat(self._filename(key))
+        try:
+            return os.stat(self._filename(key))
+        except FileNotFoundError:
+            raise KeyError(key)
 
     def walk(self):
         """
@@ -115,6 +124,7 @@ class AbstractStore(object):
         """
         raise NotImplementedError
 
+
 class KeyStore(AbstractStore):
 
     def is_key(self, key):
@@ -124,6 +134,7 @@ class KeyStore(AbstractStore):
         temp = KeyStoreTemporaryFile(self)
         temp.write(content)
         return temp.close(key)
+
 
 class KeyStoreTemporaryFile(object):
 
@@ -138,6 +149,7 @@ class KeyStoreTemporaryFile(object):
         self.tempfile.close()
         self.store._commit(key, self.path)
         return key
+
 
 class SHA256Store(AbstractStore):
 
