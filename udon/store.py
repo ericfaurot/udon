@@ -76,6 +76,12 @@ class AbstractStore(object):
         os.rename(tmppath, self._filename(key))
         return not exists
 
+    def delete(self, key):
+        """
+        Remove the key
+        """
+        return os.unlink(self._filename(key))
+
     def has(self, key):
         """
         Check if the store contains a key.
