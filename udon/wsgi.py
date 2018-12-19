@@ -445,3 +445,13 @@ def file_view(path, ctype = 'application/octect-stream', etag = None):
                         stat.st_size,
                         stat.st_mtime,
                         etag = etag)
+
+
+def forwarded_request(req):
+    response = bottle.HTTPResponse()
+    response.status = "%d %s" % (req.status_code, req.reason)
+    for key, value in req.headers.items():
+        if key not in ('Connection', ):
+            response.set_header(key, value)
+    response.body = req.raw
+    return response
