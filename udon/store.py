@@ -72,7 +72,7 @@ class AbstractStore(object):
                 os.unlink(tmppath)
                 return False
         else:
-            _mkdirs(self._dirname(key))
+            self.prepare(key)
         os.rename(tmppath, self._filename(key))
         return not exists
 
@@ -90,6 +90,12 @@ class AbstractStore(object):
         Check if the store contains a key.
         """
         return os.path.isfile(self._filename(key))
+
+    def prepare(self, key):
+        """
+        Make sure the directory exists for holding the given key
+        """
+        _mkdirs(self._dirname(key))
 
     def open(self, key):
         """
