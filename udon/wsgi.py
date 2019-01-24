@@ -343,9 +343,9 @@ def _make_etag(*parts):
 
 class ResourceView:
 
-    def __init__(self, body, ctype, size, mtime, etag = None):
+    def __init__(self, body, size, mtime, ctype = None, etag = None):
         self.body = body
-        self.ctype = ctype
+        self.ctype = ctype or 'application/octet-stream'
         self.size = size
         self.mtime = mtime
         self.etag = etag
@@ -427,23 +427,23 @@ class ResourceView:
 
 def content_view(content):
     fp = content.open()
-    headers = { key: val for key, val in fp.headers }
+    headers = { key: val for key, val in fp.info.headers }
     return ResourceView(fp,
-                        headers["Content-Type"],
-                        int(headers["Size"]),
-                        int(headers["Timestamp"]),
-                        etag = headers["ETag"])
+                        fp.info.size,
+                        fp.info.timestamp,
+                        ctype = headers.get("Content-Type"),
+                        etag = headers.get('ETag'))
 
 
-def file_view(path, ctype = 'application/octect-stream', etag = None):
+def file_view(path, ctype = None, etag = None):
     fp = open(path, "rb")
     stat = os.fstat(fp.fileno())
     if etag is None:
         etag = _make_etag(path, stat.st_size, stat.st_mtime)
     return ResourceView(fp,
-                        ctype,
                         stat.st_size,
                         stat.st_mtime,
+                        ctype = ctype,
                         etag = etag)
 
 

@@ -45,6 +45,7 @@ class TestContent(unittest.TestCase):
         content.write(datain)
         with content.open() as fp:
             dataout = fp.read()
+            info = fp.info
 
         sumin = hashlib.sha256(datain).hexdigest()
         sumout = hashlib.sha256(dataout).hexdigest()
@@ -52,22 +53,9 @@ class TestContent(unittest.TestCase):
         self.assertEqual(len(datain), len(dataout))
         self.assertEqual(datain, dataout)
         self.assertEqual(sumin, sumout)
+        self.assertEqual(len(datain), info.size)
+        self.assertEqual(sumin, info.sha256)
 
-        has_size = False
-        has_cksum = False
-        for key, val in content.headers():
-            if key == "Size":
-                self.assertFalse(has_size)
-                self.assertEqual(len(datain), int(val))
-                has_size = True
-            if key == "Checksum-SHA256":
-                self.assertFalse(has_cksum)
-                self.assertEqual(sumin, val)
-                has_cksum = True
-
-        self.assertTrue(has_size)
-        self.assertTrue(has_cksum)
-                
     def test_headers(self):
         content = self.content()
         content.write(b'')
@@ -75,54 +63,61 @@ class TestContent(unittest.TestCase):
             self.assertIsInstance(key, str)
             self.assertIsInstance(val, str)
 
-    def test_meta(self):
+    def test_headers2(self):
         content = self.content()
-        content.write(b'', meta = [
-            ("Foo", "Bar"),
-            ("Baz", 4),
-            ("Foo2", b"Bar"),
+        content.write(b'', headers = [ ("Foo", "Bar"),
+                                       ("Baz", 4),
+                                       ("Foo2", b"Bar"),
         ])
         for key, val in content.headers():
             self.assertIsInstance(key, str)
             self.assertIsInstance(val, str)
 
-    def test_bad_meta(self):
+    def test_bad_headers(self):
         content = self.content()
 
         with self.assertRaises(ValueError):
-            content.write(b'', meta = [ ("Foo:", "Bar") ])
+            content.write(b'', headers = [ ("Foo:", "Bar") ])
 
         with self.assertRaises(ValueError):
-            content.write(b'', meta = [ ("Foo\n", "") ])
+            content.write(b'', headers = [ ("Foo\n", "") ])
 
         with self.assertRaises(ValueError):
-            content.write(b'', meta = [ ("Foo", "Bax\n") ])
+            content.write(b'', headers = [ ("Foo", "Bax\n") ])
 
         with self.assertRaises(ValueError):
-            content.write(b'', meta = [ ("Foo", "Bax\n") ])
+            content.write(b'', headers = [ ("Foo", "Bar" * 999999) ])
 
-    def test_too_large(self):
+        with self.assertRaises(TypeError):
+            content.write(b'', headers = [ (1, "Bar") ])
+
+        with self.assertRaises(ValueError):
+            content.write(b'', headers = [ ("foo" * 120, "Bar") ])
+
+    def test_expect_size(self):
         content = self.content()
-        with self.assertRaises(udon.content.HeaderTooLarge):
-            content.write(b'', meta = [ ("Foo", "Bar" * 999999) ])
+        with self.assertRaises(ValueError):
+            content.write(b'foo', expect_size = 2)
+        with self.assertRaises(ValueError):
+            content.write(b'foo', expect_size = 4)
+        content.write(b'foo', expect_size = 3)
+
 
     def test_invalid_open(self):
         content = self.content("/etc/passwd")
-        with self.assertRaises(udon.content.InvalidFileFormat):
+        with self.assertRaises(ValueError):
             with content.open():
                 pass
 
-    def test_invalid_headers(self):
-        content = self.content("/etc/passwd")
-        with self.assertRaises(udon.content.InvalidFileFormat):
-            content.headers()
-
-    @unittest.skip
     def test_broken_file(self):
         content = self.content()
         with open(content.path, "w") as fp:
+            fp.write("Checksum-SHA256: 20000\n")
+            fp.write("Size: 20\n")
             fp.write("Offset: 20000\n")
+            fp.write("Timestamp: 20000\n")
+            fp.write("\n")
 
-        with self.assertRaises(udon.content.InvalidFileFormat):
+        with self.assertRaises(AssertionError):
             with content.open():
                 pass
