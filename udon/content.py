@@ -65,20 +65,21 @@ def _atomicfile(dest):
 
 @contextlib.contextmanager
 def writer(fp, expect_size = None):
-    cw = ContentWriter(fp, expect_size = expect_size)
-    yield cw
-    cw.close()
+    wrt = ContentWriter(fp, expect_size = expect_size)
+    yield wrt
+    wrt.close()
 
 
-def _chunks(input, chunk_size = 2 ** 16):
-    if isinstance(input, bytes):
-        yield input
+def _chunks(source, chunk_size = 2 ** 16):
+    if isinstance(source, bytes):
+        yield source
     else:
         while True:
-            chunk = input.read(chunk_size)
+            chunk = source.read(chunk_size)
             if not chunk:
                 return
             yield chunk
+
 
 class ContentWriter:
 
