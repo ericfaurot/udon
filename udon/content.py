@@ -22,6 +22,9 @@ import tempfile
 import time
 
 
+import udon.path
+
+
 ContentInfo = collections.namedtuple('ContentInfo', ['size', 'timestamp', 'offset', 'sha256', 'headers' ])
 
 
@@ -49,18 +52,6 @@ def reader(path):
         fp.close()
         raise
     return fp
-
-
-@contextlib.contextmanager
-def _atomicfile(dest):
-    fp = tempfile.NamedTemporaryFile(dir = os.path.dirname(dest), delete = False)
-    try:
-        yield fp
-        os.rename(fp.name, dest)
-    except:
-        with contextlib.suppress():
-            os.unlink(fp.name)
-        raise
 
 
 @contextlib.contextmanager
@@ -192,7 +183,7 @@ class ContentFile:
         return reader(self.path)
 
     def write(self, data, headers = None, expect_size = None, chunk_size = 2**16):
-        with _atomicfile(self.path) as fptmp:
+        with udon.path.overwriting(self.path) as fptmp:
             with writer(fptmp, expect_size = expect_size) as fp:
                 for header, value in headers or ():
                     fp.write_header(header, value)
