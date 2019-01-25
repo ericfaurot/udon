@@ -13,13 +13,15 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+
 import collections
+import datetime
 import os
 import stat
 import zipfile
 
 
-EntryInfo = collections.namedtuple('EntryInfo', ['filename', 'size', 'is_dir'])
+EntryInfo = collections.namedtuple('EntryInfo', ['path', 'size', 'mtime', 'is_dir'])
 
 
 class BaseTree:
@@ -33,6 +35,22 @@ class BaseTree:
     def open(self, filename):
         raise NotImplementedError
 
+    def checkfilename(self, filename):
+        if not isinstance(filename, str):
+            raise TypeError('must be a string')
+        if len(filename) == 0:
+            raise ValueError('invalid path')
+        for component in filename.split('/'):
+            if component in ('', '.', '..'):
+                raise ValueError('invalid path')
+
+
+
+
+def _zipinfo_to_info(info):
+    timestamp = int(datetime.datetime(*info.date_time).timestamp())
+    return EntryInfo(info.filename, info.file_size, timestamp, info.is_dir())
+
 
 class ZipTree(BaseTree):
 
@@ -42,17 +60,19 @@ class ZipTree(BaseTree):
     def walk(self):
         with zipfile.ZipFile(self.path) as zfp:
             for info in zfp.infolist():
-                yield EntryInfo(info.filename, info.file_size, info.is_dir())
+                yield _zipinfo_to_info(info)
 
     def info(self, filename):
         with zipfile.ZipFile(self.path) as zfp:
-            info = zfp.getinfo(filename)
-            return EntryInfo(info.filename, info.file_size, info.is_dir())
+            return _zipinfo_to_info(zfp.getinfo(filename))
 
     def open(self, filename):
         with zipfile.ZipFile(self.path) as zfp:
             return zfp.open(filename)
 
+
+def _stat_to_info(path, st):
+    return EntryInfo(path, st.st_size, int(st.st_mtime), stat.S_ISDIR(st.st_mode))
 
 class DirTree(BaseTree):
 
@@ -60,17 +80,30 @@ class DirTree(BaseTree):
         # make sure it ends with "/"
         self.root = os.path.join(root, "")
 
+    def realpath(self, filename):
+        self.checkfilename(filename)
+        path = os.path.join(self.root, filename)
+        assert path.startswith(self.root)
+        return path
+
     def walk(self):
-        for root, _, files in os.walk(self.root):
-            for name in files:
+        for root, dirs, files in os.walk(self.root):
+            for name in files + dirs:
                 path = os.path.join(root, name)
-                st = os.stat(path)
-                filename = path[len(self.root):]
-                yield EntryInfo(filename, st.st_size, stat.S_ISDIR(st))
+                assert path.startswith(self.root)
+                yield _stat_to_info(path[len(self.root):], os.stat(path))
 
     def info(self, filename):
-        st = os.stat(os.path.join(self.root, filename))
-        EntryInfo(filename, st.st_size, stat.S_ISDIR(st))
+        try:
+            return _stat_to_info(filename, os.stat(self.realpath(filename)))
+        except FileNotFoundError:
+            raise KeyError(filename)
 
     def open(self, filename):
-        return open(os.path.join(self.root, filename), "rb")
+        try:
+            return open(self.realpath(filename), "rb")
+        except FileNotFoundError:
+            raise KeyError(filename)
+
+    def subtree(self, path):
+        return DirTree(self.realpath(path))
