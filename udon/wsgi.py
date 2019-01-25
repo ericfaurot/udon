@@ -13,8 +13,11 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+
+import base64
 import hashlib
 import importlib
+import json
 import logging
 import os
 import time
@@ -345,7 +348,7 @@ class ResourceView:
 
     def __init__(self, body, size, mtime, ctype = None, etag = None):
         self.body = body
-        self.ctype = ctype or 'application/octet-stream'
+        self.ctype = ctype if ctype is not None else 'application/octet-stream'
         self.size = size
         self.mtime = mtime
         self.etag = etag
@@ -455,3 +458,35 @@ def forwarded_request(req):
             response.set_header(key, value)
     response.body = req.raw
     return response
+
+
+DEFAULT_TYPE = {
+    'pdf': 'application/pdf',
+    'mp3': 'audio/mpeg',
+    'mp4': 'video/mp4',
+    'aac': 'audio/mp4',
+    'webm': 'video/webm',
+    'oga': 'audio/ogg',
+    'ogg': 'audio/ogg',
+    'ogv': 'video/ogg',
+    'css': 'text/css',
+    'gif': 'image/gif',
+    'html': 'text/html',
+    'js': 'application/javascript',
+    'json': 'application/json',
+    'jpeg': 'image/jpeg',
+    'jpg': 'image/jpeg',
+    'otf': 'application/vnd.ms-opentype',
+    'pdf': 'application/pdf',
+    'png': 'image/png',
+    'svg': 'image/svg+xml',
+    'ttf': 'application/x-font-ttf',
+    'txt': 'text/plain',
+    'woff': 'application/font-woff',
+    'woff2': 'application/font-woff2',
+    'xhtml': 'application/xhtml+xml',
+}
+
+def guess_content_type(filename, default = None):
+    ext = filename.split('.')[-1].lower()
+    return DEFAULT_TYPE.get(ext, default)
