@@ -35,19 +35,18 @@ def parse_jwt(value):
              'signed': '.'.join(parts[:1]) }
 
 
-class PortalError(Exception):
+class AuthError(Exception):
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+class AuthRequired(AuthError):
     pass
 
-class AuthRequired(PortalError):
+class InvalidCredentials(AuthError):
     pass
 
-class NotSupported(PortalError):
-    pass
-
-class InvalidCredentials(PortalError):
-    pass
-
-class ExpiredCredentials(PortalError):
+class ExpiredCredentials(AuthError):
     pass
 
 
