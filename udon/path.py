@@ -29,6 +29,18 @@ def makedirs(path):
 
 
 @contextlib.contextmanager
+def temporary(tmpdir = None):
+    fp = tempfile.NamedTemporaryFile(dir = tmpdir, delete = False)
+    try:
+        with fp:
+            yield fp
+    except:
+        with contextlib.suppress():
+            os.unlink(fp.name)
+        raise
+
+
+@contextlib.contextmanager
 def overwriting(path, tmpdir = None, create_dir = True):
     dirname = os.path.dirname(path)
     if not tmpdir:
@@ -36,13 +48,9 @@ def overwriting(path, tmpdir = None, create_dir = True):
         if create_dir:
             makedirs(dirname)
             create_dir = False
-    fp = tempfile.NamedTemporaryFile(dir = tmpdir, delete = False)
-    try:
+
+    with temporary(tmpdir = tmpdir) as fp:
         yield fp
         if create_dir:
             makedirs(dirname)
         os.rename(fp.name, path)
-    except:
-        with contextlib.suppress():
-            os.unlink(fp.name)
-        raise
