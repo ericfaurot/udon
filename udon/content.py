@@ -55,10 +55,11 @@ def reader(path):
 
 
 @contextlib.contextmanager
-def writer(fp, expect_size = None):
-    wrt = ContentWriter(fp, expect_size = expect_size)
-    yield wrt
-    wrt.close()
+def writer(path, expect_size = None):
+    with udon.path.overwriting(path) as fp:
+        wrt = ContentWriter(fp, expect_size = expect_size)
+        yield wrt
+        wrt.close()
 
 
 def _chunks(source, chunk_size = 2 ** 16):
@@ -165,27 +166,3 @@ class ContentWriter:
         self.fp.write(b"\n")
         self.wpos += 1
         self._headers_done = True
-
-
-class ContentFile:
-
-    def __init__(self, path):
-        self.path = path
-
-    def headers(self):
-        return self.info().headers
-
-    def info(self):
-        with self.open() as fp:
-            return fp.info
-
-    def open(self):
-        return reader(self.path)
-
-    def write(self, data, headers = None, expect_size = None, chunk_size = 2**16):
-        with udon.path.overwriting(self.path) as fptmp:
-            with writer(fptmp, expect_size = expect_size) as fp:
-                for header, value in headers or ():
-                    fp.write_header(header, value)
-                for chunk in _chunks(data, chunk_size = chunk_size):
-                    fp.write(chunk)

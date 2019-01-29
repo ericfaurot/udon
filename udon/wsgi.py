@@ -428,8 +428,7 @@ class ResourceView:
         return response
 
 
-def content_view(content):
-    fp = content.open()
+def content_view(fp):
     headers = { key: val for key, val in fp.info.headers }
     return ResourceView(fp,
                         fp.info.size,
