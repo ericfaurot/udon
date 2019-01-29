@@ -55,8 +55,8 @@ def reader(path):
 
 
 @contextlib.contextmanager
-def writer(path, expect_size = None):
-    with udon.path.overwriting(path) as fp:
+def writer(path, expect_size = None, tmpdir = None):
+    with udon.path.overwriting(path, tmpdir = tmpdir) as fp:
         wrt = ContentWriter(fp, expect_size = expect_size)
         yield wrt
         wrt.close()
