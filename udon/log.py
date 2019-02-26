@@ -20,50 +20,52 @@ import sys
 import traceback
 
 
+def _formatter_default(procname):
+    return logging.Formatter(fmt = " ".join(["%(asctime)s",
+                                             "%s[%%(process)s]:" % procname,
+                                             "%(levelname)s:",
+                                             "%(name)s:",
+                                             "%(message)s" ]),
+                             datefmt = "%Y-%m-%d %H:%M:%S")
+
+def _formatter_simple(procname):
+    return logging.Formatter(fmt = " ".join(["%(levelname)s:",
+                                             "%(name)s:",
+                                             "%(message)s" ]))
+
+_formatters = {}
+_formatters ['default'] = _formatter_default
+_formatters ['simple'] = _formatter_simple
+
+
+def register_formatter(name, func):
+    _formatters[name] = func
+
+
 def init(procname = None,
          foreground = False,
          level = "INFO",
          logfile = None,
          logfile_maxcount = 10,
          logfile_maxsize = 10 * 1024 * 1024,
-         facility = "user"):
+         facility = "user",
+         format = "default"):
 
     if procname is None:
         procname = sys.argv[0]
 
     if foreground:
-        # Log to stdout
-        formatter = logging.Formatter(fmt = " ".join(["%(asctime)s",
-                                                      "%s[%%(process)s]:" % procname,
-                                                      "%(levelname)s:",
-                                                      "%(name)s:",
-                                                      "%(message)s"]),
-                                      datefmt = "%Y-%m-%d %H:%M:%S")
         handler = logging.StreamHandler(stream = sys.stdout)
-
     elif logfile:
-        # Log to file.
-        formatter = logging.Formatter(fmt = " ".join(["%(asctime)s",
-                                                      "%s[%%(process)s]:" % procname,
-                                                      "%(levelname)s:",
-                                                      "%(name)s:",
-                                                      "%(message)s"]),
-                                      datefmt = "%Y-%m-%d %H:%M:%S")
         handler = logging.handlers.RotatingFileHandler(logfile,
                                                        maxBytes = logfile_maxsize,
                                                        backupCount = logfile_maxcount)
-
     else:
-        # Log to syslog.
-        formatter = logging.Formatter(fmt = " ".join(["%s[%%(process)s]:" % procname,
-                                                      "%(levelname)s:",
-                                                      "%(name)s:",
-                                                      "%(message)s"]),
-                                      datefmt = "%Y-%m-%d %H:%M:%S")
-        handler = logging.handlers.SysLogHandler("/dev/log" if os.path.exists("/dev/log") else "/var/run/syslog",
+        devlog = "/dev/log" if os.path.exists("/dev/log") else "/var/run/syslog"
+        handler = logging.handlers.SysLogHandler(devlog,
                                                  facility = facility)
 
-    handler.setLevel(level)
+    formatter = _formatters[format](procname)
     handler.setFormatter(formatter)
     logger = logging.getLogger()
     logger.addHandler(handler)
