@@ -344,6 +344,17 @@ def _make_etag(*parts):
     return hash.hexdigest()
 
 
+def response_ok(status = 204):
+    response = bottle.HTTPResponse(status = status)
+    return response
+
+def response_json(value):
+    response = bottle.HTTPResponse()
+    response.set_header('Content-Type', 'application/json')
+    response.body = json.dumps(value)
+    return response
+
+
 class ResourceView:
 
     def __init__(self, body, size, mtime, ctype = None, etag = None):
@@ -353,10 +364,12 @@ class ResourceView:
         self.mtime = mtime
         self.etag = etag
 
-    def _modified(self, request):
-        return True
 
-    def _parse_range(self, request):
+def response_view(view, request = None):
+    if request is None:
+        request = bottle.request
+
+    def _parse_range():
         value = request.environ.get('HTTP_RANGE', '')
         if not value.startswith("bytes="):
             return None
@@ -368,17 +381,20 @@ class ResourceView:
             if (offset, end) == ('', ''):
                 continue
             if not offset:
-                offset, end = max(0, self.size - int(end) + 1), self.size
+                offset, end = max(0, view.size - int(end) + 1), view.size
             elif not end:
-                offset, end = int(offset), self.size
+                offset, end = int(offset), view.size
             else:
                 offset, end = int(offset), int(end) + 1
-            if 0 <= offset < end <= self.size:
+            if 0 <= offset < end <= view.size:
                 return offset, end
 
         return None
 
-    def _iter_range(self, body, offset, count, logger):
+    def _modified():
+        return True
+
+    def _iter_range(body, offset, count, logger):
         try:
             body.seek(offset, 1)
             while count > 0:
@@ -391,65 +407,65 @@ class ResourceView:
             _logger(logger).exception("EXCEPTION")
             raise
 
-    def get(self, request = None):
-        if request is None:
-            request = bottle.request
+    range = _parse_range()
 
-        range = self._parse_range(request)
+    response = bottle.HTTPResponse()
+    response.set_header("Accept-Ranges", "bytes")
+    response.set_header("Content-Type", view.ctype)
+    if isinstance(view.mtime, str):
+        response.set_header("Last-Modified", view.mtime)
+    else:
+        response.set_header("Last-Modified", _fmt_time(view.mtime))
+    if view.etag is not None:
+        # XXX not if Range?
+        response.set_header("ETag", view.etag)
 
-        response = bottle.HTTPResponse()
-        response.set_header("Accept-Ranges", "bytes")
-        response.set_header("Content-Type", self.ctype)
-        if isinstance(self.mtime, str):
-            response.set_header("Last-Modified", self.mtime)
-        else:
-            response.set_header("Last-Modified", _fmt_time(self.mtime))
-        if self.etag is not None:
-            # XXX not if Range?
-            response.set_header("ETag", self.etag)
+    if request.method == "HEAD":
+        response.set_header("Content-Length", view.size)
+        view.body.close()
+    elif not _modified():
+        response.set_header("Content-Length", 0)
+        response.status = "304 Not modified"
+        view.body.close()
+    elif range:
+        offset, end = range
+        response.set_header("Content-Length", end - offset)
+        response.set_header("Content-Range",  "bytes %d-%d/%d" % (offset, end - 1, view.size))
+        response.status = "206 Partial Content"
+        response.body = _iter_range(view.body, offset, end - offset, None)
+    else:
+        response.set_header("Content-Length", view.size)
+        response.body = view.body
 
-        if request.method == "HEAD":
-            response.set_header("Content-Length", self.size)
-            self.body.close()
-        elif not self._modified(request):
-            response.set_header("Content-Length", 0)
-            response.status = "304 Not modified"
-            self.body.close()
-        elif range:
-            offset, end = range
-            response.set_header("Content-Length", end - offset)
-            response.set_header("Content-Range",  "bytes %d-%d/%d" % (offset, end - 1, self.size))
-            response.status = "206 Partial Content"
-            response.body = self._iter_range(self.body, offset, end - offset, None)
-        else:
-            response.set_header("Content-Length", self.size)
-            response.body = self.body
-
-        return response
+    return response
 
 
-def content_view(fp):
-    headers = { key: val for key, val in fp.info.headers }
-    return ResourceView(fp,
-                        fp.info.size,
-                        fp.info.timestamp,
-                        ctype = headers.get("Content-Type"),
-                        etag = headers.get('ETag'))
-
-
-def file_view(path, ctype = None, etag = None):
+def response_file(path, ctype = None, etag = None):
     fp = open(path, "rb")
     stat = os.fstat(fp.fileno())
     if etag is None:
         etag = _make_etag(path, stat.st_size, stat.st_mtime)
-    return ResourceView(fp,
+    if ctype is None:
+        ctype = guess_content_type(path)
+    view = ResourceView(fp,
                         stat.st_size,
                         stat.st_mtime,
                         ctype = ctype,
                         etag = etag)
+    return response_view(view)
 
 
-def forwarded_request(req):
+def response_content(fp):
+    headers = { key: val for key, val in fp.info.headers }
+    view = ResourceView(fp,
+                        fp.info.size,
+                        fp.info.timestamp,
+                        ctype = headers.get("Content-Type"),
+                        etag = headers.get('ETag'))
+    return response_view(view)
+
+
+def response_request(req):
     response = bottle.HTTPResponse()
     response.status = "%d %s" % (req.status_code, req.reason)
     for key, value in req.headers.items():
