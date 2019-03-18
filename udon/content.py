@@ -57,23 +57,12 @@ def reader(path):
 @contextlib.contextmanager
 def writer(path, expect_size = None, tmpdir = None):
     with udon.path.overwriting(path, tmpdir = tmpdir) as fp:
-        wrt = ContentWriter(fp, expect_size = expect_size)
+        wrt = _ContentWriter(fp, expect_size = expect_size)
         yield wrt
         wrt.close()
 
 
-def _chunks(source, chunk_size = 2 ** 16):
-    if isinstance(source, bytes):
-        yield source
-    else:
-        while True:
-            chunk = source.read(chunk_size)
-            if not chunk:
-                return
-            yield chunk
-
-
-class ContentWriter:
+class _ContentWriter:
 
     RESERVED_HDRS = set(("Checksum-SHA256",
                          "Size",
