@@ -91,10 +91,10 @@ class Portal:
         self.cache = ExpireCache()
 
     def user_noauth(self, request):
-        raise AuthRequired
+        raise AuthRequired("Authorization required")
 
     def user_public(self, request):
-        raise AuthRequired
+        raise AuthRequired("Authorization required")
 
     def user_bearer(self, request, access_token, jwt):
         raise NotImplementedError
