@@ -394,14 +394,23 @@ def response_view(view, request = None):
     def _modified():
         return True
 
+    def _read(fp, count, bufsize = 1024 * 1024):
+        while count:
+            data = fp.read(min(count, bufsize))
+            if not data:
+                break
+            yield data
+            count -= len(data)
+
     def _iter_range(body, offset, count, logger):
         try:
-            body.seek(offset, 1)
-            while count > 0:
-                chunk = body.read(min(count, 1024 * 1024))
-                if not count:
-                    break
-                count -= len(chunk)
+            if (offset):
+                if body.seekable():
+                    body.seek(offset, 1)
+                else:
+                    for _ in _read(body, offset):
+                        pass
+            for chunk in _read(body, count):
                 yield chunk
         except:
             _logger(logger).exception("EXCEPTION")
