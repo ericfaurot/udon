@@ -163,3 +163,55 @@ class OpenIDClient:
 
     def userinfo(self, access_token):
         return self._request('GET', 'userinfo', headers = { 'Authorization': 'Bearer ' + access_token }).json()
+
+
+class Session:
+
+    grant = None
+    refresh_timeout = None
+    access_timeout = None
+
+    def __init__(self, client, username, password):
+        self.client = client
+        self.username = username
+        self.password = password
+
+    def token(self):
+        if not self.grant:
+            self._login()
+        elif self.access_timeout < time.time():
+            if self.refresh_timeout > time.time():
+                self._refresh()
+            else:
+                self._clear()
+                self._login()
+        return self.grant['access_token']
+
+    def logout(self):
+        if not self.grant:
+            return
+        grant, timeout = self.grant, self.refresh_timeout
+        self._clear()
+        if grant and self.time.time() < timeout:
+            # XXX fail-safe
+            self.client.logout(grant['refresh_token'])
+
+    def _clear(self):
+        del self.grant
+        del self.access_timeout
+        del self.refresh_timeout
+
+    def _login(self):
+        grant = self.client.login(self.username, self.password)
+        self._granted(grant)
+
+    def _refresh(self):
+        grant = self.client.refresh(self.grant['refresh_token'])
+        self._granted(grant)
+
+    def _granted(self, grant):
+        access_timeout = parse_jwt(grant['access_token'])['content']['exp']
+        refresh_timeout = parse_jwt(grant['refresh_token'])['content']['exp']
+        self.grant = grant
+        self.access_timeout = access_timeout
+        self.refresh_timeout = refresh_timeout
