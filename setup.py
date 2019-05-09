@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(name="udon",
       description="Simple helpers for python apps",
-      version="0.11.0",
+      version="0.12-dev",
       author="Eric Faurot",
       author_email="eric@faurot.net",
       url="https://github.com/ericfaurot/udon",
