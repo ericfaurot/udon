@@ -36,29 +36,54 @@ def run_bottle(app, **kwargs):
 _apis = {}
 def api(path):
     def _(setup):
-        _apis[setup] = path
-        return setup
+        _apis[setup] = API(path, setup)
     return _
+
+
+class API:
+
+    stack = None
+    app = None
+
+    def __init__(self, prefix, setup):
+        self.prefix = prefix
+        self.setup = setup
+
+    def install(self, stack):
+        assert self.stack is None
+        mount_point = os.path.join(stack.prefix, self.prefix)
+        if not mount_point.endswith('/'):
+            mount_point += '/'
+        app = stack.app_factory()
+        self.setup(app)
+        stack.app.mount(mount_point, self)
+        self.app = app
+        self.stack = stack
+
+    def __call__(self, environ, handler):
+        environ['udon.api'] = self
+        return self.app(environ, handler)
 
 
 class APIStack(object):
 
-    def __init__(self, prefix = "/"):
-        self.app = bottle.Bottle()
+    def __init__(self, prefix = "/", **options):
         self.prefix = prefix
+        self.options = options
+        self.app = self.app_factory()
 
-    def _install(self, mount_point, setup):
-        app = bottle.Bottle()
-        setup(app)
-        self.app.mount(mount_point, app)
-        return app
+    def app_factory(self):
+        return bottle.Bottle(**self.options)
 
-    def install(self, module_name):
+    def install_func(self, prefix, setup):
+        api = API(prefix, setup)
+        api.install(self)
+
+    def install_module(self, module_name):
         module = importlib.import_module(module_name)
-        for key, obj in module.__dict__.items():
-            if callable(obj) and obj in _apis:
-                prefix = self.prefix + _apis.get(obj) + "/"
-                self._install(prefix, obj)
+        for api in _apis.values():
+            if not api.stack:
+                api.install(self)
 
     def __call__(self, environ, handler):
         return self.app(environ, handler)
