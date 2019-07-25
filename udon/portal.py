@@ -18,10 +18,7 @@ import base64
 import json
 import time
 
-try:
-    import requests
-except ImportError:
-    requests = None
+import requests
 
 
 def parse_jwt(value):
@@ -48,6 +45,8 @@ class InvalidCredentials(AuthError):
 
 class ExpiredCredentials(AuthError):
     pass
+
+HTTPError = requests.exceptions.HTTPError
 
 
 class ExpireCache:
@@ -140,7 +139,9 @@ class OpenIDClient:
         return "%s/auth/realms/%s/protocol/openid-connect/%s" % (self.host, self.realm, action)
 
     def _request(self, method, action, data = None, headers = None):
-        return requests.request(method, self._url(action), verify = self.verify, data = data, headers = headers)
+        resp = requests.request(method, self._url(action), verify = self.verify, data = data, headers = headers)
+        resp.raise_for_status()
+        return resp
 
     def login(self, username, password):
         return self._request('POST', 'token', data = { 'client_id': self.client_id,
