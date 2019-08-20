@@ -75,9 +75,17 @@ class APIStack(object):
     def app_factory(self):
         return bottle.Bottle(**self.options)
 
+    def _install(self, mount_point, setup):
+        # TODO deprecate
+        return self.install_func(mount_point, setup)
+
     def install_func(self, prefix, setup):
         api = API(prefix, setup)
         api.install(self)
+
+    def install(self, module_name):
+        # TODO deprecate
+        return self.install_module(module_name)
 
     def install_module(self, module_name):
         module = importlib.import_module(module_name)
