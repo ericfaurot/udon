@@ -2,8 +2,6 @@ import bottle
 import cheroot.server
 import cheroot.wsgi
 
-import udon.wsgi
-
 
 class Gateway_10b(cheroot.wsgi.Gateway_10):
     def get_environ(self):

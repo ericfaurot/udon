@@ -18,7 +18,6 @@ import collections
 import contextlib
 import hashlib
 import os
-import tempfile
 import time
 
 
