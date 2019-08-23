@@ -172,10 +172,13 @@ class Session:
     refresh_timeout = None
     access_timeout = None
 
-    def __init__(self, client, username, password):
+    def __init__(self, client, username, password,
+                 access_dt = 0, refresh_dt = 0):
         self.client = client
         self.username = username
         self.password = password
+        self.access_dt = access_dt
+        self.refresh_dt = refresh_dt
 
     def token(self):
         if not self.grant:
@@ -214,5 +217,5 @@ class Session:
         access_timeout = parse_jwt(grant['access_token'])['content']['exp']
         refresh_timeout = parse_jwt(grant['refresh_token'])['content']['exp']
         self.grant = grant
-        self.access_timeout = access_timeout
-        self.refresh_timeout = refresh_timeout
+        self.access_timeout = access_timeout + self.access_dt
+        self.refresh_timeout = refresh_timeout + self.refresh_dt
