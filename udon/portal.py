@@ -16,9 +16,12 @@
 
 import base64
 import json
+import threading
 import time
 
 import requests
+
+import udon.util
 
 
 def parse_jwt(value):
@@ -173,23 +176,30 @@ class Session:
     access_timeout = None
 
     def __init__(self, client, username, password,
-                 access_dt = 0, refresh_dt = 0):
+                 lock = None, access_dt = 0, refresh_dt = 0):
         self.client = client
         self.username = username
         self.password = password
         self.access_dt = access_dt
         self.refresh_dt = refresh_dt
+        if lock is None:
+            lock = udon.util.nullcontext()
+        elif lock is True:
+            lock = threading.Lock()
+        self.lock = lock
 
     def token(self):
-        if not self.grant:
-            self._login()
-        elif self.access_timeout < time.time():
-            if self.refresh_timeout > time.time():
-                self._refresh()
-            else:
-                self._clear()
+        # Make sure two threads do not try to login/refresh a token at the same time.
+        with self.lock:
+            if not self.grant:
                 self._login()
-        return self.grant['access_token']
+            elif self.access_timeout < time.time():
+                if self.refresh_timeout > time.time():
+                    self._refresh()
+                else:
+                    self._clear()
+                    self._login()
+            return self.grant['access_token']
 
     def logout(self):
         if not self.grant:
