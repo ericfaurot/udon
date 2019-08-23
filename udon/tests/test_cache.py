@@ -6,7 +6,7 @@ import udon.cache
 
 class TestCache(unittest.TestCase):
 
-    
+
     calls = 0
     def cached_function(self, *keys):
         self.calls += 1
@@ -37,7 +37,7 @@ class TestCache(unittest.TestCase):
         calls = 100
         delay = .1
         self.calls = 0
-        
+
         cache = udon.cache.DelayCache(self.cached_function, delay = delay)
 
         for i in range(calls):
@@ -56,7 +56,7 @@ class TestCache(unittest.TestCase):
 
         time.sleep(delay)
         self.assertEqual(len(cache), 0)
-        
+
         cache("foo")
         self.assertEqual(len(cache), 1)
         self.assertEqual(cache.hit, calls)
