@@ -15,17 +15,12 @@
 #
 import time
 
+import udon.util
+
 
 class NoCache(Exception):
     def __init__(self, value):
         self.value = value
-
-
-class _NoLock:
-    def __enter__(self):
-        pass
-    def __exit__(self, _type, _value, _traceback):
-        pass
 
 
 class AbstractCache:
@@ -33,7 +28,7 @@ class AbstractCache:
     hit = 0
     miss = 0
     skip = 0
-    lock = _NoLock()
+    lock = udon.util.nullcontext()
 
     def __init__(self, func, lock = None):
         self.func = func
