@@ -88,7 +88,7 @@ class APIStack(object):
         return self.install_module(module_name)
 
     def install_module(self, module_name):
-        module = importlib.import_module(module_name)
+        importlib.import_module(module_name)
         for api in _apis.values():
             if not api.stack:
                 api.install(self)
@@ -170,7 +170,7 @@ class LogMiddleware:
     def format_message(self, environ, ret, dt):
         request = bottle.request
         response = bottle.response
-        scheme, host, path, query_string, fragment = request.urlparts
+        _scheme, host, _path, _query_string, _fragment = request.urlparts
         return "%.3f %s %s %s %d %d %s %s" % (dt,
                                               environ["REMOTE_ADDR"],
                                               environ.get("HTTP_X_FORWARDED_FOR", "-"),

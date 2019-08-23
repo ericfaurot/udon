@@ -119,7 +119,7 @@ class AbstractStore(object):
         """
         Iterate over all existing keys.
         """
-        for root, dirs, files in os.walk(self.root):
+        for _root, _dirs, files in os.walk(self.root):
             for filename in files:
                 if self.is_key(filename):
                     yield filename
