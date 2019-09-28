@@ -518,7 +518,6 @@ def response_request(req):
 
 
 DEFAULT_TYPE = {
-    'pdf': 'application/pdf',
     'mp3': 'audio/mpeg',
     'mp4': 'video/mp4',
     'aac': 'audio/mp4',
