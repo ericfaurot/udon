@@ -123,12 +123,12 @@ class Portal:
                 except:
                     raise InvalidCredentials("Invalid authorization token")
 
-                if timeout <= time.time():
-                    raise ExpiredCredentials(access_token)
+            if timeout <= time.time():
+                raise ExpiredCredentials(access_token)
 
-                user = self.user_bearer(request, access_token, jwt)
-                self.cache.set(access_token, user, timeout)
-                return user
+            user = self.user_bearer(request, access_token, jwt)
+            self.cache.set(access_token, user, timeout)
+            return user
 
         raise InvalidCredentials("Invalid authorization scheme")
 
