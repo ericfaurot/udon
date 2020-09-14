@@ -122,6 +122,10 @@ class Portal:
                     timeout = jwt['content']['exp']
                 except:
                     raise InvalidCredentials("Invalid authorization token")
+
+                if timeout <= time.time():
+                    raise udon.portal.ExpiredCredentials("Expired authorization token")
+
                 user = self.user_bearer(request, access_token, jwt)
                 self.cache.set(access_token, user, timeout)
                 return user
