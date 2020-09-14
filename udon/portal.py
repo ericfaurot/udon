@@ -210,7 +210,7 @@ class Session:
             return
         grant, timeout = self.grant, self.refresh_timeout
         self._clear()
-        if grant and self.time.time() < timeout:
+        if grant and time.time() < timeout:
             # XXX fail-safe
             self.client.logout(grant['refresh_token'])
 
