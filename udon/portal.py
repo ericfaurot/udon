@@ -77,7 +77,7 @@ class ExpireCache:
         if timeout <= timestamp:
             del self.cache[key]
             self.purge(timestamp)
-            raise ExpiredCredentials(value)
+            raise ExpiredCredentials(key)
         return value
 
     def set(self, key, value, timeout):
@@ -124,7 +124,7 @@ class Portal:
                     raise InvalidCredentials("Invalid authorization token")
 
                 if timeout <= time.time():
-                    raise udon.portal.ExpiredCredentials("Expired authorization token")
+                    raise ExpiredCredentials(access_token)
 
                 user = self.user_bearer(request, access_token, jwt)
                 self.cache.set(access_token, user, timeout)
