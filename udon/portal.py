@@ -135,10 +135,11 @@ class Portal:
 
 class OpenIDClient:
 
-    def __init__(self, host, realm, client_id, client_secret, verify = True):
+    def __init__(self, host, realm, client_id, client_secret, verify = True, scope = 'openid'):
         self.verify = verify
         self.realm = realm
         self.host = host
+        self.scope = scope
         self.client_id = client_id
         self.client_secret = client_secret
 
@@ -153,7 +154,7 @@ class OpenIDClient:
     def login(self, username, password):
         return self._request('POST', 'token', data = { 'client_id': self.client_id,
                                                        'client_secret': self.client_secret,
-                                                       'scope': 'openid',
+                                                       'scope': self.scope,
                                                        'grant_type': 'password',
                                                        'username': username,
                                                        'password': password }).json()
