@@ -230,7 +230,7 @@ class Session:
 
     def _granted(self, grant):
         access_timeout = parse_jwt(grant['access_token'])['content']['exp']
-        refresh_timeout = parse_jwt(grant['refresh_token'])['content']['exp']
+        refresh_timeout = parse_jwt(grant['refresh_token'])['content'].get('exp')
         self.grant = grant
         self.access_timeout = access_timeout + self.access_dt
-        self.refresh_timeout = refresh_timeout + self.refresh_dt
+        self.refresh_timeout = refresh_timeout + self.refresh_dt if refresh_timeout else 0
