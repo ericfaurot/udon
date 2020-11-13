@@ -445,9 +445,14 @@ def response_view(view, request = None):
                         pass
             for chunk in _read(body, count):
                 yield chunk
+        except GeneratorExit:
+            # interrupted transfer
+            pass
         except:
             _logger(logger).exception("EXCEPTION")
             raise
+        finally:
+            body.close()
 
     range = _parse_range()
 
