@@ -107,6 +107,10 @@ class Portal:
             return self.user_noauth(request)
 
         parts = auth.split(' ', 1)
+
+        if len(parts) != 2:
+            raise InvalidCredentials("Invalid authorization header")
+
         scheme = parts[0]
 
         if scheme == 'Public':
